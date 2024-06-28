@@ -1,19 +1,19 @@
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
 import requests
 from PIL import Image
 import base64
 from io import BytesIO
+import time
+
+app = FastAPI()
 
 # Load your API token
 API_TOKEN = "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"
 
 # Function to encode image to base64
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
-
-# Load image
-image_path = '/content/61bZ2w5w7AL.__AC_SX300_SY300_QL70_ML2_.jpg'
-image_base64 = encode_image(image_path)
+def encode_image(image_bytes):
+    return base64.b64encode(image_bytes).decode("utf-8")
 
 # Define API endpoint
 API_URL = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
@@ -24,13 +24,32 @@ headers = {
 }
 
 # Define payload
-payload = {
-    "inputs": image_base64
-}
+def get_payload(image_base64):
+    return {"inputs": image_base64}
 
-# Make the request
-response = requests.post(API_URL, headers=headers, json=payload)
-result = response.json()
+# Function to make the request with retry logic
+def get_prediction(image_base64):
+    payload = get_payload(image_base64)
+    for attempt in range(5):
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result = response.json()
+        if 'error' in result and 'loading' in result['error']:
+            print(f"Attempt {attempt + 1}: Model is still loading. Waiting for 10 seconds.")
+            time.sleep(10)  # Wait for 10 seconds before retrying
+        else:
+            return result
+    return {"error": "Model did not load after several attempts"}
 
-# Print the result
-print(result)
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Invalid image format. Only JPEG and PNG are supported.")
+    
+    image_bytes = await file.read()
+    image_base64 = encode_image(image_bytes)
+    result = get_prediction(image_base64)
+    return JSONResponse(content=result)
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=8000)
