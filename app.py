@@ -1,29 +1,36 @@
-import streamlit as st
-from transformers import ViTImageProcessor, ViTForImageClassification
+import requests
 from PIL import Image
-import torch
+import base64
+from io import BytesIO
 
-processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
-model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
+# Load your API token
+API_TOKEN = "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"
 
-st.title("Image Classification with ViT")
+# Function to encode image to base64
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+# Load image
+image_path = '/content/61bZ2w5w7AL.__AC_SX300_SY300_QL70_ML2_.jpg'
+image_base64 = encode_image(image_path)
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
+# Define API endpoint
+API_URL = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
 
-    st.image(image, caption='Uploaded Image', use_column_width=True)
+# Define headers
+headers = {
+    "Authorization": f"Bearer {API_TOKEN}"
+}
 
-    inputs = processor(images=image, return_tensors="pt")
-    outputs = model(**inputs)
-    logits = outputs.logits
+# Define payload
+payload = {
+    "inputs": image_base64
+}
 
-    predicted_class_idx = logits.argmax(-1).item()
-    predicted_class_label = model.config.id2label[predicted_class_idx]
+# Make the request
+response = requests.post(API_URL, headers=headers, json=payload)
+result = response.json()
 
-    st.write(f"Predicted class: {predicted_class_label}")
-
-
-if __name__ == '__main__':
-    st.write("Upload an image to classify")
+# Print the result
+print(result)
