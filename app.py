@@ -39,9 +39,10 @@ def get_prediction(image_base64):
         else:
             return result
     return {"error": "Model did not load after several attempts"}
-@app.get("/test")
-    return JSONResponse("success")
-        
+@app.get('/')
+def read_root():
+    return {"success"}
+    
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if file.content_type not in ["image/jpeg", "image/png"]:
