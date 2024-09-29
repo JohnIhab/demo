@@ -17,4 +17,3 @@ exports.default = (err, req, res, next) => {
         (0, response_1.default)(res, err.statusCode, { status: false, message: err.message });
     }
 };
-//# sourceMappingURL=errorMiddleware.js.map

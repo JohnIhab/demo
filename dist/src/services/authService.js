@@ -22,6 +22,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -30,218 +39,98 @@ const client_1 = __importDefault(require("../../prisma/client"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const ApiError_1 = __importDefault(require("../utils/ApiError"));
 const generateOTP_1 = __importStar(require("../utils/generateOTP"));
-const sendMails_1 = __importDefault(require("../utils/sendMails"));
-const verify_1 = require("../utils/verify");
-class adminService {
-    async signUp(data, role) {
-        const { email, password, firstName, lastName, mobileNumber, schooleYear, avatar } = data;
-        const verificationCode = (0, verify_1.generateVerificationCode)();
-        const verificationToken = (0, verify_1.generateVerificationCode)().toString();
-        ;
-        const verificationTokenExpiresAt = new Date(Date.now() + 3600000); // Token expires in 1 hour
-        try {
-            const existingUser = await client_1.default.user.findFirst({
-                where: {
-                    OR: [
-                        { email },
-                        { mobileNumber }
-                    ]
-                }
-            });
-            if (existingUser) {
-                throw new Error('User with this email or mobile number already exists');
-            }
-            const user = await client_1.default.user.create({
+class AuthService {
+    signUp(data, role) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { name, email, password, avatar } = data;
+            const user = yield client_1.default.user.create({
                 data: {
-                    firstName,
-                    lastName,
+                    name,
                     email,
-                    password: await bcrypt_1.default.hash(password, 8),
-                    mobileNumber,
-                    schooleYear,
+                    password: yield bcrypt_1.default.hash(password, 8),
                     avatar,
                     role,
-                    verificationToken,
-                    verificationTokenExpiresAt
                 },
-                select: {
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                    mobileNumber: true,
-                    schooleYear: true,
-                    role: true,
+            });
+            return user;
+        });
+    }
+    login(email, password) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = yield client_1.default.user.findUnique({
+                where: {
+                    email,
+                },
+            });
+            if (!user) {
+                throw new ApiError_1.default("Incorrect Email or password", 400);
+            }
+            const passwordMatch = yield bcrypt_1.default.compare(password, user.password);
+            if (!passwordMatch) {
+                throw new ApiError_1.default("Incorrect Email or password", 400);
+            }
+            return user;
+        });
+    }
+    forgetPassword(email) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const user = yield client_1.default.user.findUnique({
+                where: {
+                    email,
+                },
+            });
+            if (!user) {
+                throw new ApiError_1.default("User not found", 404);
+            }
+            const codes = (0, generateOTP_1.default)();
+            yield client_1.default.user_Codes.upsert({
+                where: {
+                    userId: user.id,
+                },
+                update: {
+                    resetPasswordCode: codes.hashedOTP,
+                    resetPasswordCodeExpiresAt: new Date(codes.otpExpiration),
+                },
+                create: {
+                    resetPasswordCode: codes.hashedOTP,
+                    resetPasswordCodeExpiresAt: new Date(codes.otpExpiration),
+                    userId: user.id,
+                },
+            });
+            return { email: user.email, code: codes.otp, username: user.name };
+        });
+    }
+    verifyResetPasswordCode(email, code) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const hashedOTP = (0, generateOTP_1.encrypt)(code);
+            const userCode = yield client_1.default.user_Codes.findFirst({
+                where: {
+                    resetPasswordCode: hashedOTP,
+                    resetPasswordCodeExpiresAt: {
+                        gte: new Date()
+                    },
+                    User: {
+                        email
+                    }
                 }
             });
-            const baseUrl = 'https://bioscope-rosy.vercel.app'; // Base URL of your application
-            const endpoint = '/api/auth/verifyEmail'; // Path to the verification endpoint
-            const verificationLink = `${baseUrl}${endpoint}?token=${verificationToken}`;
-            // SMS message content
-            const emailSubject = 'د/ جلال نبيل';
-            const emailData = {
-                to: email,
-                subject: `Email Verification ${emailSubject}`,
-                html: `<p>Your verification code is: <strong>${verificationLink}</strong></p>`,
-            };
-            await (0, sendMails_1.default)(emailData);
-            return user;
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                console.error('Error during signup or sending email:', error.message);
-                console.error('Stack trace:', error.stack);
-            }
-            else {
-                console.error('An unknown error occurred:', error);
-            }
-            throw error; // Optionally re-throw to handle it further up the call stack
-        }
-    }
-    async verifyEmail(data) {
-        const { token } = data;
-        // Find the user with the given token
-        const user = await client_1.default.user.findFirst({
-            where: {
-                verificationToken: token,
-                verificationTokenExpiresAt: {
-                    gte: new Date(), // Check if token is not expired
-                }
-            }
-        });
-        if (!user) {
-            throw new Error('Invalid or expired token');
-        }
-        // Update user to mark email as verified
-        await client_1.default.user.update({
-            where: { id: user.id },
-            data: {
-                emailverified: true, // Assuming you have a field for email verification
-                verificationToken: null, // Optionally clear the token
-                verificationTokenExpiresAt: null // Optionally clear the token expiration
+            if (!userCode) {
+                throw new ApiError_1.default("Code is Invalid Or Expired", 400);
             }
         });
     }
-    async login(identifier, password) {
-        const user = await client_1.default.user.findFirst({
-            where: {
-                OR: [
-                    { email: identifier },
-                    { mobileNumber: identifier } // Adjust this if the field name is different
-                ]
-            }
-        });
-        if (!user) {
-            throw new ApiError_1.default("Incorrect Email or password", 400);
-        }
-        if (user.block) {
-            throw new ApiError_1.default("Your account has been blocked. Please contact support.", 403);
-        }
-        const passwordMatch = await bcrypt_1.default.compare(password, user.password);
-        if (!passwordMatch) {
-            throw new ApiError_1.default("Incorrect Email or password", 400);
-        }
-        if (!user.emailverified) {
-            throw new Error('Email not verified. Please check your message for the verification code.');
-        }
-        return user;
-    }
-    //auht by google
-    async logout(userid) {
-        // Update the user's session data to mark them as logged out
-        const updatedUser = await client_1.default.user.update({
-            where: {
-                id: userid,
-            },
-            data: {
-                lastLogout: new Date(),
-            },
-        });
-    }
-    async forgetPassword(email) {
-        const user = await client_1.default.user.findFirst({
-            where: {
-                email,
-            },
-        });
-        if (!user || user.block) {
-            throw new ApiError_1.default("User not found or block", 404);
-        }
-        const codes = (0, generateOTP_1.default)();
-        await client_1.default.user_Codes.upsert({
-            where: {
-                userId: user.id,
-            },
-            update: {
-                resetPasswordCode: codes.hashedOTP,
-                resetPasswordCodeExpiresAt: new Date(codes.otpExpiration),
-            },
-            create: {
-                resetPasswordCode: codes.hashedOTP,
-                resetPasswordCodeExpiresAt: new Date(codes.otpExpiration),
-                userId: user.id,
-            },
-        });
-        const emailSubject = 'Your Password Reset Code';
-        const emailHtml = `
-  <p>Hello ${user.firstName},</p>
-  <p>Your password reset code is: <strong>${codes.otp}</strong>. It is valid for the next 10 minutes.</p>
-  <p>Best regards,<br/>Your Team</p>
-`;
-        await (0, sendMails_1.default)({
-            to: user.email,
-            subject: emailSubject,
-            html: emailHtml,
-        });
-        console.log(codes);
-        return { email: user.email, code: codes.otp, username: user.firstName };
-    }
-    async verifyResetPasswordCode(email, code) {
-        const hashedOTP = (0, generateOTP_1.encrypt)(code);
-        const userCode = await client_1.default.user_Codes.findFirst({
-            where: {
-                resetPasswordCode: hashedOTP,
-                resetPasswordCodeExpiresAt: {
-                    gte: new Date()
-                },
-                User: {
+    resetPassword(email, password) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield client_1.default.user.update({
+                where: {
                     email
+                },
+                data: {
+                    password: yield bcrypt_1.default.hash(password, 8)
                 }
-            }
-        });
-        if (!userCode) {
-            throw new ApiError_1.default("Code is Invalid Or Expired", 400);
-        }
-        await client_1.default.user.update({
-            where: {
-                email,
-            },
-            data: {
-                isResetCodeVerified: true,
-            },
-        });
-    }
-    async resetPassword(email, password) {
-        const user = await client_1.default.user.findFirst({
-            where: {
-                email,
-            },
-        });
-        if (!user || !user.isResetCodeVerified) {
-            throw new ApiError_1.default("Reset code not verified ", 400);
-        }
-        if (user.block) {
-            throw new ApiError_1.default("User  blocked", 404);
-        }
-        await client_1.default.user.update({
-            where: {
-                email
-            },
-            data: {
-                password: await bcrypt_1.default.hash(password, 8)
-            }
+            });
         });
     }
 }
-const authService = new adminService();
+const authService = new AuthService();
 exports.default = authService;
-//# sourceMappingURL=authService.js.map

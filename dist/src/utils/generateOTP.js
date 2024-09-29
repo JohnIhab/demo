@@ -19,4 +19,3 @@ const generateOTP = () => {
     return { otp, hashedOTP, otpExpiration };
 };
 exports.default = generateOTP;
-//# sourceMappingURL=generateOTP.js.map

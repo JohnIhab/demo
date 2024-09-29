@@ -1,4 +1,5 @@
 import fs from "fs";
+
 export default (path: string) => {
   // const pathArray = path.split('/');
   // let currentPath = '';

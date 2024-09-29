@@ -9,4 +9,3 @@ exports.default = (payload) => {
         expiresIn: process.env.JWT_EXPIRATION_TIME
     });
 };
-//# sourceMappingURL=signToken.js.map

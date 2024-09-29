@@ -1,1 +1,0 @@
-{"version":3,"file":"signToken.js","sourceRoot":"","sources":["../../../src/utils/signToken.ts"],"names":[],"mappings":";;;;;AAAA,gEAA+B;AAE/B,kBAAe,CAAC,OAAqB,EAAE,EAAE;IACrC,OAAO,sBAAG,CAAC,IAAI,CAAC,OAAO,EAAE,OAAO,CAAC,GAAG,CAAC,UAAW,EAAE;QAC9C,SAAS,EAAE,OAAO,CAAC,GAAG,CAAC,mBAAmB;KAC7C,CAAC,CAAC;AACP,CAAC,CAAA"}

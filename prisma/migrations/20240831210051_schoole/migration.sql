@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "User" ALTER COLUMN "schooleYear" DROP NOT NULL,
-ALTER COLUMN "schooleYear" DROP DEFAULT;

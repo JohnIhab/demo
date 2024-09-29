@@ -5,5 +5,5 @@ var Roles;
 (function (Roles) {
     Roles["ADMIN"] = "ADMIN";
     Roles["USER"] = "USER";
+    Roles["SUPER_ADMIN"] = "SUPER_ADMIN";
 })(Roles || (exports.Roles = Roles = {}));
-//# sourceMappingURL=roles.js.map

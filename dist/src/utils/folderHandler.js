@@ -20,4 +20,3 @@ exports.default = (path) => {
 const checkIfFolderExists = (path) => {
     return fs_1.default.existsSync(path);
 };
-//# sourceMappingURL=folderHandler.js.map

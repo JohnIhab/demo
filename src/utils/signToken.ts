@@ -5,4 +5,3 @@ export default (payload: {id: number}) => {
         expiresIn: process.env.JWT_EXPIRATION_TIME
     });
 }
-
