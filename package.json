@@ -4,6 +4,7 @@
     "description": "This Repo is for projects quick start",
     "main": "index.js",
     "scripts": {
+        "prestart": "bash ./colors.sh",
         "postinstall": "prisma generate",
         "build": "tsc",
         "ts.check": "tsc --project tsconfig.json",
