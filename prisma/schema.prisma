@@ -1,25 +1,38 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
-
+enum Role {
+  ADMIN
+  USER
+}
 model User {
   id         Int         @id @default(autoincrement())
-  name       String
+  firstName    String
+  lastName     String
   email      String      @unique
+  googleId  String?  @unique
   password   String
+  schooleYear String?   
+  mobileNumber String?    @unique
   role       String      @default("USER")
+  block     Boolean      @default(false) // Add this line
   avatar     String?
+  cart       Cart?
+  verificationCode  Int?  
+  emailverified Boolean @default(false)
+  verificationToken    String?     // Field for storing the verification token
+  verificationTokenExpiresAt DateTime? // Field for storing the token expiration
+  lastLogout   DateTime?
+  isResetCodeVerified    Boolean   @default(false)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   User_Codes User_Codes?
+  Contact_Us   Contact_Us[]
 }
 
 model User_Codes {
@@ -31,4 +44,122 @@ model User_Codes {
   resetPasswordCodeVerified  Boolean   @default(false)
   userId                     Int       @unique
   User                       User      @relation(fields: [userId], references: [id])
+}
+model Contact_Us {
+  id        Int      @id @default(autoincrement())
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Video {
+  id         Int      @id @default(autoincrement())
+  url        String
+  name       String? 
+  lectureId  Int
+  lecture    Lecture @relation("LectureVideos", fields: [lectureId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+}
+model Cart {
+  id         Int         @id @default(autoincrement())
+  user       User        @relation(fields: [userId], references: [id])
+  userId     Int         @unique
+  payment    Payment?    @relation(fields: [paymentId], references: [id])
+  paymentId  Int?
+  items      CartItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model CartItem {
+  id         Int         @id @default(autoincrement())
+  cart       Cart        @relation(fields: [cartId], references: [id])
+  cartId     Int
+  lectureId  Int
+  quantity   Int         @default(1)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  purchaseDate DateTime?   // Date when the video was purchased
+  expiryDate   DateTime?   // Date when the video access expires
+  purchased   Boolean   @default(false) // Indicates if the item is purchased
+  @@unique([cartId, lectureId])
+    Lecture Lecture @relation(fields: [lectureId], references: [id])
+}
+
+  
+model Course {
+  id            Int      @id @default(autoincrement())
+  name          String
+  imageUrl      String
+  courseFor     String? // 'ثانوي عامه' أو 'ثانوي لغات'
+  terms         Term[]    // علاقات متعددة مع Term // علاقات متعددة مع CourseContent
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Term {
+  id        Int      @id @default(autoincrement())
+  name      String
+  course    Course   @relation(fields: [courseId], references: [id])
+  courseId  Int
+  lectures  Lecture[] @relation("LectureTerms")
+  contents   CourseContent[]
+  courseFor String?         // New field to store courseFor values
+  isLocked  Boolean  @default(false)
+}
+
+model CourseContent {
+  id        Int      @id @default(autoincrement())
+  content   String
+  termId    Int
+  term      Term   @relation(fields: [termId], references: [id])
+  Quiz Quiz[]
+  Lecture Lecture[]
+}
+model Lecture {
+id             Int       @id @default(autoincrement())
+name           String
+subTitle String?
+numberOfLectures Int
+price          String?
+photoUrl       String?
+contentId      Int       // Changed from courseId to contentId
+content        CourseContent @relation(fields: [contentId], references: [id])
+isFree  Boolean   @default(false)
+createdAt      DateTime  @default(now())
+updatedAt      DateTime  @updatedAt
+cartItems CartItem[]
+terms          Term[]          @relation("LectureTerms") 
+video Video[] @relation("LectureVideos")
+}
+model Quiz {
+id        Int      @id @default(autoincrement())
+name      String   // Add this field
+class   String?
+link      String   // URL for the Quiz 
+contentId Int
+content   CourseContent @relation(fields: [contentId], references: [id])
+}
+model Payment {
+  id             Int      @id @default(autoincrement())
+  paymentId      String      @unique  // ID provided by Paymob
+  paymentMethod  String   // 'visa' or 'vodafone_cash'
+  amount         Int      // Amount in piasters (e.g., 100 * amount in pounds)
+  status         String   // Payment status
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  Cart Cart[]
+}
+model Token {
+    id            Int      @id @default(autoincrement())
+    accessToken   String
+    refreshToken  String?
+    expiryDate    DateTime
+    tokenType     String
+    createdAt     DateTime @default(now())
 }

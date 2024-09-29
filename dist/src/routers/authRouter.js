@@ -10,7 +10,9 @@ const joiMiddleware_1 = __importDefault(require("../middlewares/joiMiddleware"))
 const authValidations_1 = require("../validations/authValidations");
 const router = (0, express_1.Router)();
 router.post("/signup", multer_1.default.single("avatar"), (0, joiMiddleware_1.default)(authValidations_1.registerValidationSchema), authController_1.default.signUpUser);
-router.post("/login", (0, joiMiddleware_1.default)(authValidations_1.loginValidationSchema), authController_1.default.login);
+router.post("/login", 
+//joiAsyncMiddleWare(loginValidationSchema),
+authController_1.default.login);
 router.post("/add-users", authController_1.default.addUsers);
 router.post("/forget-password", authController_1.default.forgetPassword);
 router.post("/verify-reset-code", authController_1.default.verifyResetCode);

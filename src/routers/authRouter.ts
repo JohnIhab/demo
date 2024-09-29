@@ -17,7 +17,7 @@ router.post(
 
 router.post(
   "/login",
-  joiAsyncMiddleWare(loginValidationSchema),
+  //joiAsyncMiddleWare(loginValidationSchema),
   authController.login
 );
 

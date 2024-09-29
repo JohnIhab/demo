@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
-
+console.log( process.env.CLOUDINARY_CLOUD_NAME);
 app.use("/uploads", express.static("uploads"));
 app.use("/assets", express.static("assets"));
 

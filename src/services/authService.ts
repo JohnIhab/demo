@@ -3,24 +3,65 @@ import { SignUpType } from "../types/authType";
 import bcrypt from "bcrypt";
 import ApiError from "../utils/ApiError";
 import generateOTP, { encrypt } from "../utils/generateOTP";
+import { generateVerificationCode } from '../utils/verify';
 
 class AuthService {
-  async signUp(data: SignUpType, role?: string) {
-    const { name, email, password, avatar } = data;
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: await bcrypt.hash(password, 8),
-        avatar,
-        role,
-      },
-    });
-    return user;
-  }
+ 
+  async signUp(data: SignUpType  , role?: string) {
+    const {email, password, firstName, lastName, mobileNumber ,schooleYear,  avatar } = data;
+      const verificationToken = generateVerificationCode().toString();;
+     const verificationTokenExpiresAt = new Date(Date.now() + 3600000); // Token expires in 1 hour
 
+      try {
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email },
+              { mobileNumber }
+            ]
+          }
+        });
+    
+        if (existingUser) {
+          throw new Error('User with this email or mobile number already exists');
+        }
+        const user = await prisma.user.create({
+          data: {
+            firstName,
+            lastName,
+            email,
+            password: await bcrypt.hash(password, 8),
+            mobileNumber,
+            schooleYear,
+            avatar,
+            role,
+            verificationToken,
+            verificationTokenExpiresAt
+          },
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            mobileNumber: true,
+            schooleYear:true,
+            role: true,
+          }
+        });
+        
+            return user;
+    
+        } catch (error) {
+        if (error instanceof Error) {
+          console.error('Error during signup or sending email:', error.message);
+          console.error('Stack trace:', error.stack);
+        } else {
+          console.error('An unknown error occurred:', error);
+        }
+        throw error; // Optionally re-throw to handle it further up the call stack
+      }
+    }
   async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: {
         email,
       },
@@ -59,7 +100,7 @@ class AuthService {
         userId: user.id,
       },
     });
-    return { email: user.email, code: codes.otp, username: user.name };
+    return { email: user.email, code: codes.otp, username: user.firstName };
   }
 
   async verifyResetPasswordCode(email: string, code: string) {

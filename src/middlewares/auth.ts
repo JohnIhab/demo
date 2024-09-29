@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import ApiError from "../utils/ApiError";
 import prisma from "../../prisma/client";
 import CustomRequest from "../interfaces/customRequest";
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 export default async (req: Request, res: Response, next: NextFunction) => {
   try {

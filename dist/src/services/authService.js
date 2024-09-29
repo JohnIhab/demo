@@ -39,25 +39,65 @@ const client_1 = __importDefault(require("../../prisma/client"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const ApiError_1 = __importDefault(require("../utils/ApiError"));
 const generateOTP_1 = __importStar(require("../utils/generateOTP"));
+const verify_1 = require("../utils/verify");
 class AuthService {
     signUp(data, role) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { name, email, password, avatar } = data;
-            const user = yield client_1.default.user.create({
-                data: {
-                    name,
-                    email,
-                    password: yield bcrypt_1.default.hash(password, 8),
-                    avatar,
-                    role,
-                },
-            });
-            return user;
+            const { email, password, firstName, lastName, mobileNumber, schooleYear, avatar } = data;
+            const verificationToken = (0, verify_1.generateVerificationCode)().toString();
+            ;
+            const verificationTokenExpiresAt = new Date(Date.now() + 3600000); // Token expires in 1 hour
+            try {
+                const existingUser = yield client_1.default.user.findFirst({
+                    where: {
+                        OR: [
+                            { email },
+                            { mobileNumber }
+                        ]
+                    }
+                });
+                if (existingUser) {
+                    throw new Error('User with this email or mobile number already exists');
+                }
+                const user = yield client_1.default.user.create({
+                    data: {
+                        firstName,
+                        lastName,
+                        email,
+                        password: yield bcrypt_1.default.hash(password, 8),
+                        mobileNumber,
+                        schooleYear,
+                        avatar,
+                        role,
+                        verificationToken,
+                        verificationTokenExpiresAt
+                    },
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        mobileNumber: true,
+                        schooleYear: true,
+                        role: true,
+                    }
+                });
+                return user;
+            }
+            catch (error) {
+                if (error instanceof Error) {
+                    console.error('Error during signup or sending email:', error.message);
+                    console.error('Stack trace:', error.stack);
+                }
+                else {
+                    console.error('An unknown error occurred:', error);
+                }
+                throw error; // Optionally re-throw to handle it further up the call stack
+            }
         });
     }
     login(email, password) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield client_1.default.user.findUnique({
+            const user = yield client_1.default.user.findFirst({
                 where: {
                     email,
                 },
@@ -97,7 +137,7 @@ class AuthService {
                     userId: user.id,
                 },
             });
-            return { email: user.email, code: codes.otp, username: user.name };
+            return { email: user.email, code: codes.otp, username: user.firstName };
         });
     }
     verifyResetPasswordCode(email, code) {
