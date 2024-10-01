@@ -235,6 +235,33 @@ class VideoService {
             });
         });
     } // رمز التفويض الذي حصلت عليه
+    uploadChunkToDrive(fileBuffer, fileName, mimeType) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const passThrough = new stream_1.PassThrough();
+            passThrough.end(fileBuffer);
+            const response = yield drive.files.create({
+                requestBody: { name: fileName, mimeType },
+                media: { mimeType, body: passThrough },
+            });
+            const fileId = response.data.id;
+            return `https://drive.google.com/uc?id=${fileId}`;
+        });
+    }
+    uploadLargeFileInChunks(fileBuffer, fileName, mimeType) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const chunkSize = 5 * 1024 * 1024; // حجم الجزء الواحد 5MB
+            const chunks = Math.ceil(fileBuffer.length / chunkSize);
+            const urls = [];
+            for (let i = 0; i < chunks; i++) {
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+                const chunk = fileBuffer.slice(start, end);
+                const url = yield this.uploadChunkToDrive(chunk, `${fileName}-part${i + 1}`, mimeType);
+                urls.push(url);
+            }
+            return urls;
+        });
+    }
     getTokens() {
         return __awaiter(this, void 0, void 0, function* () {
             try {

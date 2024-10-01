@@ -7,6 +7,7 @@ import { PassThrough } from 'stream';
 //const gapi = window.gapi;
 const prisma = new PrismaClient();
 import * as dotenv from 'dotenv';
+import { drive_v3 } from 'googleapis';
 dotenv.config();
 // إعداد OAuth2Client باستخدام المتغيرات من ملف .env
 /*
@@ -201,7 +202,36 @@ class VideoService {
             }
         });
     } // رمز التفويض الذي حصلت عليه
+    async uploadChunkToDrive(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+        const passThrough = new PassThrough();
+        passThrough.end(fileBuffer);
 
+        const response = await drive.files.create({
+            requestBody: { name: fileName, mimeType },
+            media: { mimeType, body: passThrough },
+        });
+
+        const fileId = response.data.id;
+        return `https://drive.google.com/uc?id=${fileId}`;
+    }
+
+    async uploadLargeFileInChunks(fileBuffer: Buffer, fileName: string, mimeType: string) {
+        const chunkSize = 5 * 1024 * 1024; // حجم الجزء الواحد 5MB
+        const chunks = Math.ceil(fileBuffer.length / chunkSize);
+        const urls: string[] = [];
+
+        for (let i = 0; i < chunks; i++) {
+            const start = i * chunkSize;
+            const end = start + chunkSize;
+            const chunk = fileBuffer.slice(start, end);
+
+            const url = await this.uploadChunkToDrive(chunk, `${fileName}-part${i + 1}`, mimeType);
+            urls.push(url);
+        }
+
+        return urls;
+    }
+    
 async  getTokens() {
     try {
         // تبادل رمز التفويض للحصول على access_token و refresh_token

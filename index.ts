@@ -24,6 +24,13 @@ app.use(timeout('10m'));
 app.use(express.json({ limit: '2gb' })); // أو الحد المطلوب
 app.use(express.urlencoded({ limit: '2gb', extended: true }));
 
+
+
+
+
+
+
+
 app.use("/uploads", express.static("uploads"));
 app.use("/assets", express.static("assets"));
 
